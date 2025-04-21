@@ -1,0 +1,422 @@
+ZK3 Serie @Mobile Application User Protocol 
+0. Revision History 
+Version 
+Date 
+Author 
+Description of Change 
+90.00 
+2024-03-08 
+90.01 
+2024-04-7 
+Schuyler Zhang 
+Schuyler Zhang Initial 
+1. Added AT+BKIME/BKXWM command 
+2. Deleted AT+TET/IME command 
+3. Modified '3.1.1 Advertising' description 
+90.02 
+2024-04-22 
+Schuyler Zhang 1. Added AT+BKGMD command 
+QSZMAUPZKAN9002                                                            
+1 
+ZK3 Serie @Mobile Application User Protocol 
+1. Overview 
+1.1. Scope 
+The @Mobile Application Internal Protocol, is used for all communication between the Mobile 
+device (such as smart-phones) and the IoT device via Bluetooth/NFC. The Mobile device sends a 
+command to the IoT device and then the IoT device confirms with an Acknowledgement 
+message. If necessary, the IoT device also sends messages to the Mobile device. 
+The purpose of this document is to describe how to build up the Mobile APP based on the 
+@Mobile Application Internal Protocol. 
+1.2. Terms and Abbreviations 
+Abbreviation 
+Description 
+APP 
+ASCII 
+BLE 
+Application Software 
+American National Standard Code for Information Interchange 
+Bluetooth Low Energy 
+IoT 
+NFC 
+UTC 
+Internet of Things 
+Near-Field Communication 
+Coordinated Universal Time 
+QSZMAUPZKAN9002                                                            
+2 
+ZK3 Serie @Mobile Application User Protocol 
+2. System Architecture 
+Central Service Platform
+ Database
+ Internet
+ B/S
+ Web Server
+ Backend Server
+ Mobile Device
+ Internet
+ C/S
+ GPRS/UMTS/LTE
+ NFC
+ Figure 1 System Architecture 
+IoT Device
+ The backend server can be accessed by multiple IoT devices should have the following abilities: 
+ The backend server should be able to access the internet and monitor the connection 
+originating from the IoT device. 
+ The backend server should be able to support TCP connection with the IoT device. It should 
+be able to receive data from the IoT device and send data to the IoT device. 
+The system architecture should have the following feature: 
+(1) When the 'Dynamic Password' is used as 'BLE Password'. 
+ The IoT device would report a 'Dynamic Password' to backend server. The backend server 
+should send an Acknowledgement to active the 'Dynamic Password'. 
+ The Mobile device could get the 'Dynamic Password' from backend server. 
+ The Mobile device can send the unlock/lock command within 'Dynamic Password' to the IoT 
+device via Bluetooth or NFC. 
+(2) When the 'Static Password' is used as 'BLE Password'. 
+ The Mobile device can send the unlock/lock command within 'Static Password' to the IoT 
+device via Bluetooth or NFC. 
+ The Mobile device can change the 'BLE Password' of the IoT device via Bluetooth. 
+QSZMAUPZKAN9002                                                            
+3 
+ZK3 Serie @Mobile Application User Protocol 
+3. Message Description 
+3.1. Bluetooth 
+3.1.1. Advertising 
+The custom data of BLE Advertising packets carries IMEI and device identification information. 
+The Mobile APP could search the Bluetooth device and establish the connection with the IMEI. 
+The last two bytes of the IMEI are the device identifier. 
+For example, the image below shows the IMEI '866425030732178' in a broadcast packet, and 
+the device identifier '012D'. 
+3.1.2. Services 
+There is a 'Test Service' which be used to test and configure the device.  
+ There are 4 characteristics in the 'Test Service', and be divided in the follow categories: 
+ Control 
+ Firmware Updates 
+ User APP 
+Control 
+This is data to control the IoT device, like opening the lock. 
+Firmware Updates 
+This is data that initiates and controls the firmware update. 
+User APP 
+This characteristic is used for consumer user APP. It supports unlock/lock command. 
+UUID 
+The base UUID is a random 128 bit number and must be chosen for the IoT device. 
+UUID: 0000UUUU-0000-1000-8000-00805f9b34fb 
+Within the 128 bit UUID a 16 bit number (UUUU) is chosen for each service and characteristic. 
+QSZMAUPZKAN9002                                                            
+4 
+ZK3 Serie @Mobile Application User Protocol 
+In this document only the 16 bit UUID number is specified for each service and characteristic. 
+For example: 
+The 16 bit UUID 2c00 is chosen from the 128 bit UUID 00002c00-0000-1000-8000-00805f9b34fb. 
+Numeric values 
+The order of bytes of numeric values in the messages is little-endian. 
+e.g. 1234 decimal (0x04D2 hexadecimal) is presented in the order 0xD2 0x04 (LSB first). 
+3.1.3. Test Service (UUID:0x2C00) 
+3.1.3.1. Control (UUID:0x2C01) 
+Properties: Write, Write no response, Notify 
+Format: ASCII 
+Comment: This characteristic is used to control or get information. It supports the 'AT+GTXXX' 
+format commands as well. 
+Details: 
+Messages are in the form of strings, each parameter separated by ',' (comma) and each message 
+ends with '\r\n' (<CR><LF>). The following description omits the endings <CR> and <LF>. 
+a) Interface Protocol: 
+Please see the "ZK301IoT 协议-_Vxx.pdf" documentation. 
+b) Logs command: 
+Message List 
+Command 
+(Mobile-->IoT) 
+Acknowledgement 
+(IoT-->Mobile) 
+AT+BLELOG=< BLE log 
+Status > 
+None. 
+Remark 
+Open/close BLE logs. 
+(e.g: AT+BLELOG=1/0) 
+ <BLE logs Status>: Indicates the BLE logs output switch. 
+ 0: close BLE logs. 
+ 1: open BLE logs. 
+ Logs control command: 
+log              
+Turn on or turn off the system log. -n [-level] xxx    -r:    -w:   -i:    -d:    -na [-level] xxx   -f xxx          -n all        -f all           
+Turn on the xxx channel's log, and the log level is [-level]: 
+Error level; 
+Warning level; 
+Information level; 
+Debug level, by default, when it's omitted, it indicates the debug level. 
+Same as '-n XXX', it takes effect even if the CPU is restarted, 'a' means always. 
+  Turn off the xxx channel's log. 
+    Turn on all channel's log. 
+ Turn off all channel's log. 
+Supported channels list: gnss,misc,audio,ecu,qftp,modem,protocol,battery,mgr,sensor,mqtt,geo 
+QSZMAUPZKAN9002                                                            
+5 
+ZK3 Serie @Mobile Application User Protocol 
+QSZMAUPZKAN9002                                                            6 
+(e.g: log -na -i ble,sensor,audio) 
+ 
+3.1.3.2. Firmware Updates (UUID:0x2C04) 
+Properties: Write, Write no response, Notify  
+Format: ASCII/Hex 
+Comment: This characteristic is used to upgrade. 
+Details: It is provided as a library. 
+3.1.3.3. User APP (UUID:0x2C10) 
+Properties: Write, Write no response, Notify  
+Format: ASCII/Hex 
+Comment: This characteristic is used for the consumer. It supports unlocking/locking command. 
+Details: 
+Messages are in the form of strings, each parameter separated by ',' (comma) and each message 
+ends with '\r\n' (<CR><LF>). The following description omits the endings <CR> and <LF>. 
+Message List 
+Command 
+(Mobile-->IoT) 
+Acknowledgement 
+(IoT-->Mobile) Remark 
+AT+BKSCT= 
+<BLE Password>, 
+<Lock Command>$ 
++ACK:BKSCT,<Status>$ Lock/Unlock the ECU-Lock or 
+Mechanical-Locks. 
+◊ <Lock Command>: Command 
+ID. 
+▪ 0: Unlock ECU-Lock. 
+▪ 1: Lock ECU-Lock. 
+▪ 2: Enhanced unlock ECU-Lock. 
+▪ 10: Unlock Battery-Lock. 
+▪ 11: Lock Battery-Lock. 
+▪ 20: Unlock Pile-Lock. 
+▪ 21: Lock Pile-Lock. 
+▪ 30: Unlock Basket-Lock. 
+▪ 31: Lock Basket-Lock. 
+▪ 40: Unlock Spare-Lock. 
+▪ 41: Lock Spare-Lock. 
+◊ <Status>: 
+▪ 0: ECU-Lock unlocked. 
+▪ 1: ECU-Lock locked. 
+▪ 10|11|20|21|30|31|40|41: 
+Indicates which Mechanical-Locks 
+command ID is received. 
+AT+BKECP= 
+<BLE Password>, 
+<ECU Type>, 
+<Max Speed Limit>, 
++ACK:BKECP,<Result>$ ECP parameters configuration. 
+◊ <ECU Type>: Indicates ECU type. 
+▪ 0: OKAI ES100. 
+▪ 1: OKAI ES90. 
+ZK3 Serie @Mobile Application User Protocol 
+QSZMAUPZKAN9002                                                            7 
+<Speed Up Mode>, 
+<Display Unit>$ 
+◊ <Max Speed Limit>: The degree 
+of the maximum speed level. 
+For ECU type ES100: 
+▪ 0: No limit speed. 
+▪ 1: The max speed is 1 MPH. 
+▪ 2: The max speed is 2 MPH. 
+▪ 3: The max speed is 3 MPH. 
+▪ 4: The max speed is 4 MPH. 
+▪ 5: The max speed is 5 MPH. 
+▪ 6: The max speed is 6 MPH. 
+▪ 7: The max speed is 7 MPH. 
+For ECU type ES90: 
+▪ 0~63: Unit is km/h. 
+◊ <Speed Up Mode>: 
+▪ 0: Soft mode. 
+▪ 1: Normal mode 
+▪ 2: Motion mode. 
+◊ <Display Unit>: The unit of meter 
+display. 
+▪ 0: YD. 
+▪ 1: KM. 
+◊ <Result>: The processing result. 
+▪ 0: Failure. 
+▪ 1: Success. 
+AT+BKLED= 
+<BLE Password>, 
+<LED>, 
+<LED Status>$ 
++ACK:BKLED,<Result>$ Control the LED. 
+◊ <LED>: Specify which LED would 
+be controlled. 
+▪ 0: Head lamp. 
+◊ <LED Status>: Indicates what 
+status of LED. 
+▪ 0: LED off. 
+▪ 1: LED on. 
+◊ <Result>: The processing result. 
+▪ 0: Failure. 
+▪ 1: Success. 
+AT+BKLOC= 
+<BLE Password>, 
+<Reserved>$ 
++ACK:BKLOC,<Result>$ Locating the scooter. 
+◊ <Reserved>: Always 0. 
+◊ <Result>: The processing result. 
+▪ 0: Failure. 
+▪ 1: Success. 
+AT+BKWRN= 
+<BLE Password>, 
+<Reserved>$ 
++ACK:BKWRN,<Result>$ Illegal use of scooter warning. 
+◊ <Reserved>: Always 0. 
+◊ <Result>: The processing result. 
+▪ 0: Failure. 
+ZK3 Serie @Mobile Application User Protocol 
+QSZMAUPZKAN9002                                                            8 
+▪ 1: Success. 
+AT+BKPWD= 
+<BLE Password>, 
+<New BLE Password>$ 
++ACK:BKPWD,<Result>$ Modify the password for BLE. 
+◊ <New BLE Password>: The new 
+password for BLE. The supported 
+characters are '0' - '9', 'a' - 
+'z', 'A' - 
+'Z', '-' and '_'. Password length is 
+4~20 bytes. 
+◊ <Result>: The processing result. 
+▪ 0: Failure. 
+▪ 1: Success. 
+AT+BKINF= 
+<BLE Password>, 
+<Reserved>$ 
++ACK:BKINF,<Lock 
+Status>,<Scooter 
+Speed>,<Current 
+Mileage>,<Total 
+Mileage>,<Ride 
+Time>,<Scooter Battery 
+Percentage>,<Headlamp 
+Status>$ 
+Query scooter information. 
+◊ <Lock Status>: Indicates the ECU 
+lock status. 
+▪ 0: Unlocked. 
+▪ 1: Locked. 
+◊ <Scooter Speed>: Unit:km/h. 
+◊ <Current Mileage>: The current 
+mileage, unit: km. 
+◊ <Total Mileage>: The total 
+mileage, unit: km. 
+◊ <Ride Time>: The total time of 
+riding and the range is 0~36000s. 
+◊ <Scooter Battery Percentage>: 
+The value range is 0~100. 
+◊ <Headlamp Status>: Indicates the 
+status of head lamp. 
+▪ 0: LED off. 
+▪ 1: LED on. 
+AT+BKVER= 
+<BLE Password>, 
+<Reserved>$ 
++ACK:BKVER, 
+<MCU Firmware>, 
+<BLE Firmware>, 
+<ECU Firmware>, 
+<Meter Firmware>, 
+<BMS Firmware>, 
+<Battery-Lock Firmware>, 
+<Reserved>, 
+<Reserved>, 
+<Reserved>, 
+<Reserved>$ 
+◊ <MCU Firmware>: The software 
+version of the MCU. 
+◊ <BLE Firmware>: The software 
+version of the BLE. 
+◊ <ECU Firmware>: The software 
+version of the ECU. 
+◊ <Meter Firmware>: The software 
+version of the Meter. 
+◊ <BMS Firmware>: The software 
+version of the BMS. 
+◊ <Battery-Lock Firmware>: The 
+software version of the Battery 
+Lock. 
+◊ <Reserved>: Reserved field. Set 
+to 0. 
+AT+BKIME= +ACK:BKIME, ◊ <Imei>: Device IMEI. 
+ZK3 Serie @Mobile Application User Protocol 
+<Reserved>, 
+<Reserved>$ 
+<Imei>, 
+<Custom Code>$ 
++ACK:BKXWM,<Result>$ 
+◊ <Custom Code>: Device customer 
+code 
+AT+BKXWM= 
+<Super key>, 
+<Work Mode>$ 
+◊ <Super key>: Decrypt the secret 
+key. 
+◊ <Work Mode >: The working 
+mode of IoT device code 
+▪ 1: Normal. 
+▪ 2: Transport. 
+▪ 3: Test. 
+◊ <Result>: Device IMEI. 
+▪ 0: Failure. 
+▪ 1: Success. 
+AT+BKGMD= 
+<Reserved>, 
+<Reserved>$ 
++ACK:BKGMD, 
+<Device Mode>$ 
+◊ <Device Mode>: Device current 
+mode. 
+▪ 1: Normal. 
+▪ 2: Transport. 
+▪ 3: Test. 
+QSZMAUPZKAN9002                                                            
+9 
+ZK3 Serie @Mobile Application User Protocol 
+QSZMAUPZKAN9002                                                            10 
+3.1.4. Communication Process 
+Power On
+ NFC Enable?
+ Mobile near to IoT
+ APP reading the QR code 
+from IoT
+ Got QR code?
+ Send Unlock/Lock 
+command to IoT
+ YES
+ NO
+ Mobile Device IoT Device
+ Communicating
+ Receiving the ACK from IoT
+ Display the result
+ Set the QR code as NFC Tag
+ YES
+  NFC Tag has been 
+read out by Mobile?
+ YES
+ NO
+ NO
+ Received the 
+command from 
+Mobile?
+ Respond ACK to Mobile
+ YES
+ NO
+ 
+ZK3 Serie @Mobile Application User Protocol 
+4. Appendix: Message Index 
+ Bluetooth Control 
+AT+BLELOG 
+AT+BK 
+ Bluetooth User App 
+AT+BKSCT 
+AT+BKECP 
+AT+BKLED 
+AT+BKLOC 
+AT+BKWRN 
+AT+BKPWD 
+AT+BKINF 
+AT+BKVER 
+AT+BKIME 
+AT+BKXWM 
+AT+BKGMD 
+QSZMAUPZKAN9002                                       
