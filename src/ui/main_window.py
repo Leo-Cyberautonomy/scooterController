@@ -5,6 +5,7 @@ import asyncio
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk, simpledialog
+from datetime import datetime
 
 # 将项目根目录添加到Python搜索路径中
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -668,24 +669,60 @@ class MainWindow:
         if sub_lock_number is None:
             return
         
+        # 显示进度提示
+        progress_window = tk.Toplevel(self.root)
+        progress_window.title("解锁中")
+        progress_window.geometry("300x100")
+        progress_window.transient(self.root)
+        progress_window.grab_set()
+        
+        progress_label = tk.Label(progress_window, text=f"正在解锁 {controller_id} 的子锁 {sub_lock_number}...\n请稍候")
+        progress_label.pack(pady=20)
+        
         # 执行解锁
         def run_unlock():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(self.scooter_controller.mqtt_controller.async_unlock(controller_id, sub_lock_number))
-            loop.close()
-            
-            # 更新UI需在主线程中进行
-            self.root.after(0, lambda: self.show_unlock_result(result, controller_id, sub_lock_number))
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(self.scooter_controller.mqtt_controller.async_unlock(controller_id, sub_lock_number))
+                loop.close()
+                
+                # 更新UI需在主线程中进行
+                self.root.after(0, lambda: self.show_unlock_result(result, controller_id, sub_lock_number, progress_window))
+            except Exception as e:
+                # 发生异常时，在主线程中显示错误
+                error_msg = str(e)
+                self.root.after(0, lambda: self.show_unlock_error(error_msg, controller_id, sub_lock_number, progress_window))
         
         threading.Thread(target=run_unlock).start()
     
-    def show_unlock_result(self, result, controller_id, sub_lock_number):
+    def show_unlock_result(self, result, controller_id, sub_lock_number, progress_window=None):
         """显示解锁结果"""
+        # 关闭进度窗口
+        if progress_window:
+            progress_window.destroy()
+            
         if result:
             messagebox.showinfo("成功", f"成功解锁 {controller_id} 的子锁 {sub_lock_number}")
+            # 记录到日志
+            self.log_output.insert(tk.END, f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 成功解锁 {controller_id} 的子锁 {sub_lock_number}\n")
+            self.log_output.see(tk.END)
         else:
             messagebox.showerror("错误", f"解锁 {controller_id} 的子锁 {sub_lock_number} 失败")
+            # 记录到日志
+            self.log_output.insert(tk.END, f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 解锁 {controller_id} 的子锁 {sub_lock_number} 失败\n")
+            self.log_output.see(tk.END)
+    
+    def show_unlock_error(self, error_msg, controller_id, sub_lock_number, progress_window=None):
+        """显示解锁过程中的错误"""
+        # 关闭进度窗口
+        if progress_window:
+            progress_window.destroy()
+            
+        messagebox.showerror("错误", f"解锁 {controller_id} 的子锁 {sub_lock_number} 时发生错误:\n{error_msg}")
+        # 记录到日志
+        self.log_output.insert(tk.END, f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 解锁错误: {error_msg}\n")
+        self.log_output.see(tk.END)
 
 if __name__ == "__main__":
     root = tk.Tk()

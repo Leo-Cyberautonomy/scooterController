@@ -14,22 +14,7 @@
 ## 安装依赖
 
 ```bash
-pip install bleak asyncio tkinter sqlite3
-```
-
-要使用MQTT功能，还需安装Mosquitto客户端：
-
-**Windows**:
-从 [Mosquitto官网](https://mosquitto.org/download/) 下载并安装客户端
-
-**Linux**:
-```bash
-sudo apt-get install mosquitto-clients
-```
-
-**macOS**:
-```bash
-brew install mosquitto
+pip install bleak asyncio tkinter sqlite3 paho-mqtt
 ```
 
 ## 运行程序
@@ -66,7 +51,6 @@ python main.py
 ## 注意事项
 
 - 蓝牙通信依赖于系统蓝牙适配器正常工作
-- MQTT功能依赖于Mosquitto客户端正确安装
 - 首次运行会在当前目录创建SQLite数据库文件
 
 ## 开发者信息
@@ -75,4 +59,5 @@ python main.py
 - bleak：用于BLE蓝牙通信
 - asyncio：提供异步IO支持
 - tkinter：提供GUI界面
-- sqlite3：本地数据存储 
+- sqlite3：本地数据存储
+- paho-mqtt：提供MQTT通信 

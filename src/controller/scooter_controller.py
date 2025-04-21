@@ -30,6 +30,19 @@ class ScooterController:
         # 存储已连接的设备客户端
         self.connected_clients = {}
     
+    def __del__(self):
+        """确保在对象销毁时关闭数据库和MQTT连接"""
+        try:
+            # 关闭MQTT连接
+            if hasattr(self, 'mqtt_controller'):
+                self.mqtt_controller.close()
+                
+            # 关闭数据库连接
+            if hasattr(self, 'db'):
+                self.db.close()
+        except Exception as e:
+            print(f"关闭资源时出错: {e}")
+    
     async def scan_scooters(self):
         """
         扫描附近的蓝牙设备，并与数据库中的记录匹配
