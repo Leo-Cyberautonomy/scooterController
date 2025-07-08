@@ -16,22 +16,20 @@ from src.controller.scooter_controller import ScooterController
 
 class MainWindow:
     def __init__(self, root):
+        """初始化主窗口"""
         self.root = root
-        self.root.title("电动车控制程序")
-        self.device_list = []
+        self.root.title("智能滑板车管理系统")
+        self.root.geometry("1200x700")
         
-        # 存储BLE密码（用户需先填写）
-        self.password_var = tk.StringVar()
-        
-        # 用于保存当前已连接的设备客户端对象
-        self.connected_client = None
-        
-        # 创建滑板车控制器
+        # 初始化控制器
         self.scooter_controller = ScooterController()
         
-        # 存储操作指令选择变量
+        # 设置变量
+        self.device_var = tk.StringVar()
+        self.password_var = tk.StringVar(value="zk301")  # 默认密码zk301
         self.operation_var = tk.StringVar()
-        # 扩展后的操作指令列表，包含完整的锁/解锁操作及其他功能
+        
+        # 存储操作指令选择变量
         self.operations = [
             "ECU锁：解锁",       # AT+BKSCT=<BLE密码>,0
             "ECU锁：上锁",       # AT+BKSCT=<BLE密码>,1
@@ -53,10 +51,19 @@ class MainWindow:
         # 默认选择第一个操作
         self.operation_var.set(self.operations[0])
         
-        # 初始化界面
-        self.create_widgets()
+        # 创建UI
+        self.create_frames()
+        
+        # 创建自动更新记录查看按钮
+        self.add_auto_update_history_button()
+        
+        # 用于保存当前已连接的设备客户端对象
+        self.connected_client = None
+        
+        # 设备列表
+        self.device_list = []
 
-    def create_widgets(self):
+    def create_frames(self):
         """创建整个界面，包括顶部导航及功能区"""
         # -------------------------
         # 顶部导航栏（或侧边栏均可，这里采用顶部导航栏）
@@ -89,7 +96,6 @@ class MainWindow:
         self.scan_button.pack(pady=10)
 
         # 下拉设备列表
-        self.device_var = tk.StringVar(self.device_frame)
         self.device_menu = tk.OptionMenu(self.device_frame, self.device_var, ())
         self.device_menu.pack(pady=10)
 
@@ -97,19 +103,9 @@ class MainWindow:
         self.connection_status = tk.Label(self.device_frame, text="连接状态: 未连接", fg="red")
         self.connection_status.pack(pady=10)
 
-        # BLE 密码输入 —— 用户需提前填写
-        self.password_label = tk.Label(self.device_frame, text="请输入BLE密码：")
-        self.password_label.pack(pady=5)
-        self.password_entry = tk.Entry(self.device_frame, textvariable=self.password_var, show="*")
-        self.password_entry.pack(pady=5)
-
         # 新增连接设备按钮
         self.connect_button = tk.Button(self.device_frame, text="连接设备", command=self.connect_device)
         self.connect_button.pack(pady=10)
-
-        # 新增查看 GATT 服务按钮
-        self.gatt_button = tk.Button(self.device_frame, text="查看GATT服务", command=self.show_gatt_services_window)
-        self.gatt_button.pack(pady=5)
 
         # -------------------------
         # 操作指令区（命令中心）
@@ -181,9 +177,6 @@ class MainWindow:
         self.add_scooter_btn = tk.Button(self.scooter_btn_frame, text="添加车辆", command=self.add_scooter)
         self.add_scooter_btn.pack(side=tk.LEFT, padx=5)
         
-        self.update_scooter_lock_btn = tk.Button(self.scooter_btn_frame, text="更新关联锁", command=self.update_scooter_lock)
-        self.update_scooter_lock_btn.pack(side=tk.LEFT, padx=5)
-        
         # -------------------------
         # 锁管理区（新增）
         self.lock_mgmt_frame = tk.Frame(self.root)
@@ -224,6 +217,12 @@ class MainWindow:
         
         self.test_unlock_btn = tk.Button(self.lock_btn_frame, text="测试解锁", command=self.test_unlock)
         self.test_unlock_btn.pack(side=tk.LEFT, padx=5)
+
+        # -------------------------
+        # 自动更新历史记录区
+        self.auto_update_frame = tk.Frame(self.root)
+        self.auto_update_button = tk.Button(self.auto_update_frame, text="查看自动更新记录", command=self.show_auto_update_history)
+        self.auto_update_button.pack(pady=5)
 
         # 默认显示设备管理区
         self.show_device_management()
@@ -314,17 +313,50 @@ class MainWindow:
         if not selected_device:
             messagebox.showerror("错误", "请选择一个设备")
             return
-        # 检查BLE密码是否填写
+            
+        # 使用默认BLE密码
         ble_pwd = self.password_var.get().strip()
-        if not ble_pwd:
-            messagebox.showerror("错误", "请先在设备管理区输入BLE密码")
-            return
 
         # 根据操作构造命令
         operation = self.operation_var.get()
+        
+        # 对于解锁操作，使用联动解锁功能
+        if operation == "ECU锁：解锁":
+            self.log_output.insert(tk.END, f"操作: {operation}\n同步解锁车辆ECU和物理锁...\n")
+            self.log_output.see(tk.END)
+            
+            # 查找设备对应的车辆ID
+            scooter_id = None
+            for scooter in self.scooter_controller.scooter_manager.get_all_scooters():
+                if scooter["bluetooth_address"] == selected_device.address:
+                    scooter_id = scooter["scooter_id"]
+                    break
+            
+            if not scooter_id:
+                self.log_output.insert(tk.END, "错误: 找不到对应的车辆，请先在车辆管理中注册设备\n")
+                self.log_output.see(tk.END)
+                return
+                
+            # 启动解锁任务
+            def unlock_task():
+                try:
+                    ble_success, mqtt_success = asyncio.run(
+                        self.scooter_controller.unlock_scooter(scooter_id, ble_pwd)
+                    )
+                    
+                    # 在主线程中更新UI
+                    self.root.after(0, lambda: self._update_unlock_result(ble_success, mqtt_success, scooter_id))
+                except Exception as e:
+                    error_msg = str(e)
+                    self.root.after(0, lambda: self.log_output.insert(tk.END, f"解锁操作异常: {error_msg}\n"))
+                    self.root.after(0, lambda: self.log_output.see(tk.END))
+            
+            # 在新线程中执行解锁
+            threading.Thread(target=unlock_task).start()
+            return
+            
         # 定义锁命令映射：键为操作名称，值为对应的 <Lock Command> 参数
         lock_commands = {
-            "ECU锁：解锁": "0",
             "ECU锁：上锁": "1",
             "ECU锁：增强解锁": "2",
             "电池锁：解锁": "10",
@@ -385,6 +417,23 @@ class MainWindow:
             error_msg = str(e)
             self.log_output.insert(tk.END, f"命令执行异常: {error_msg}\n")
             self.log_output.see(tk.END)
+            
+    def _update_unlock_result(self, ble_success, mqtt_success, scooter_id):
+        """更新解锁结果到界面"""
+        if ble_success and mqtt_success:
+            self.log_output.insert(tk.END, f"车辆 {scooter_id} 解锁成功：ECU解锁 ✓ 物理锁解锁 ✓\n")
+            self.status_info.config(text=f"设备信息: 车辆和物理锁均已解锁")
+        elif ble_success:
+            self.log_output.insert(tk.END, f"车辆 {scooter_id} 部分解锁：ECU解锁 ✓ 物理锁解锁 ✗\n")
+            self.status_info.config(text=f"设备信息: 车辆已解锁，但物理锁解锁失败")
+        elif mqtt_success:
+            self.log_output.insert(tk.END, f"车辆 {scooter_id} 部分解锁：ECU解锁 ✗ 物理锁解锁 ✓\n")
+            self.status_info.config(text=f"设备信息: 物理锁已解锁，但车辆ECU解锁失败")
+        else:
+            self.log_output.insert(tk.END, f"车辆 {scooter_id} 解锁失败：ECU解锁 ✗ 物理锁解锁 ✗\n")
+            self.status_info.config(text=f"设备信息: 解锁失败，请检查连接和密码")
+        
+        self.log_output.see(tk.END)
 
     def connect_device(self):
         """尝试与选中的蓝牙设备建立连接，并更新连接状态，同时保存连接对象。"""
@@ -409,47 +458,6 @@ class MainWindow:
                 self.root.after(0, lambda: self.connection_status.config(text=f"连接状态: 异常 {error_msg}", fg="red"))
 
         threading.Thread(target=connect_thread).start()
-
-    def show_gatt_services_window(self):
-        """弹出新窗口显示已连接设备的 GATT 服务信息"""
-        if self.connected_client is None or not self.connected_client.is_connected:
-            messagebox.showerror("错误", "请先连接设备")
-            return
-
-        # 创建新的 Toplevel 窗口显示 GATT 信息
-        window = tk.Toplevel(self.root)
-        window.title("GATT服务信息")
-        window.geometry("600x400")
-
-        text_widget = tk.Text(window, wrap=tk.NONE)
-        text_widget.pack(fill=tk.BOTH, expand=True)
-
-        # 添加垂直滚动条
-        scrollbar = tk.Scrollbar(window, orient=tk.VERTICAL, command=text_widget.yview)
-        text_widget.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # 定义函数用于异步获取 GATT 服务信息并更新到 text_widget
-        def fetch_gatt():
-            try:
-                async def get_services():
-                    services = await self.connected_client.get_services()
-                    return services
-
-                # use asyncio.run 在新线程中运行 async 函数
-                services = asyncio.run(get_services())
-                info = ""
-                for service in services:
-                    info += f"Service: {service.uuid}\n"
-                    for char in service.characteristics:
-                        props = ",".join(char.properties)
-                        info += f"  Characteristic: {char.uuid} | Properties: {props}\n"
-                # 在主线程中更新 text_widget 
-                self.root.after(0, lambda: text_widget.insert(tk.END, info))
-            except Exception as e:
-                self.root.after(0, lambda: text_output.insert(tk.END, f"获取GATT信息出错: {e}\n"))
-
-        threading.Thread(target=fetch_gatt).start()
 
     # 新增方法：车辆管理相关
     def refresh_scooter_list(self):
@@ -530,62 +538,6 @@ class MainWindow:
                 messagebox.showerror("错误", "车辆添加失败，可能是ID或蓝牙地址已存在", parent=add_window)
         
         tk.Button(add_window, text="提交", command=submit).grid(row=5, column=0, columnspan=2, pady=20)
-    
-    def update_scooter_lock(self):
-        """更新车辆关联的锁"""
-        # 获取选中的车辆
-        selected_items = self.scooter_tree.selection()
-        if not selected_items:
-            messagebox.showerror("错误", "请先选择一台车辆")
-            return
-        
-        # 获取车辆信息
-        item = selected_items[0]
-        scooter_id = self.scooter_tree.item(item, "values")[0]
-        
-        # 弹出窗口获取新的锁信息
-        update_window = tk.Toplevel(self.root)
-        update_window.title("更新车辆关联锁")
-        update_window.geometry("400x200")
-        
-        # 锁控制器ID
-        tk.Label(update_window, text="锁控制器ID:").grid(row=0, column=0, padx=10, pady=10, sticky=tk.W)
-        lock_controller_id_var = tk.StringVar()
-        tk.Entry(update_window, textvariable=lock_controller_id_var, width=30).grid(row=0, column=1, padx=10, pady=10)
-        
-        # 子锁号
-        tk.Label(update_window, text="子锁号:").grid(row=1, column=0, padx=10, pady=10, sticky=tk.W)
-        sub_lock_number_var = tk.StringVar()
-        tk.Entry(update_window, textvariable=sub_lock_number_var, width=30).grid(row=1, column=1, padx=10, pady=10)
-        
-        # 提交按钮
-        def submit():
-            lock_controller_id = lock_controller_id_var.get().strip()
-            sub_lock_number_str = sub_lock_number_var.get().strip()
-            
-            if not lock_controller_id or not sub_lock_number_str:
-                messagebox.showerror("错误", "锁控制器ID和子锁号均为必填项", parent=update_window)
-                return
-            
-            try:
-                sub_lock_number = int(sub_lock_number_str)
-            except ValueError:
-                messagebox.showerror("错误", "子锁号必须为数字", parent=update_window)
-                return
-            
-            # 更新关联
-            success = self.scooter_controller.update_scooter_lock_association(
-                scooter_id, lock_controller_id, sub_lock_number
-            )
-            
-            if success:
-                messagebox.showinfo("成功", "关联更新成功", parent=update_window)
-                update_window.destroy()
-                self.refresh_scooter_list()
-            else:
-                messagebox.showerror("错误", "关联更新失败", parent=update_window)
-        
-        tk.Button(update_window, text="提交", command=submit).grid(row=2, column=0, columnspan=2, pady=20)
     
     # 新增方法：锁管理相关
     def refresh_lock_list(self):
@@ -723,6 +675,73 @@ class MainWindow:
         # 记录到日志
         self.log_output.insert(tk.END, f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 解锁错误: {error_msg}\n")
         self.log_output.see(tk.END)
+
+    def add_auto_update_history_button(self):
+        """添加一个按钮，用于查看自动更新历史记录"""
+        self.auto_update_button = tk.Button(
+            self.device_frame, 
+            text="查看自动更新记录", 
+            command=self.show_auto_update_history
+        )
+        self.auto_update_button.pack(pady=5)
+    
+    def show_auto_update_history(self):
+        """显示自动更新的历史记录"""
+        # 创建新窗口
+        history_window = tk.Toplevel(self.root)
+        history_window.title("自动更新历史记录")
+        history_window.geometry("800x400")
+        
+        # 创建 Treeview 用于显示历史记录
+        columns = ("操作时间", "车辆ID", "锁控制器ID", "子锁号", "状态")
+        history_tree = ttk.Treeview(history_window, columns=columns, show="headings")
+        
+        # 设置列标题
+        for col in columns:
+            history_tree.heading(col, text=col)
+            history_tree.column(col, width=150)
+        
+        # 添加滚动条
+        scrollbar = ttk.Scrollbar(history_window, orient="vertical", command=history_tree.yview)
+        history_tree.configure(yscrollcommand=scrollbar.set)
+        history_tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # 获取最近的操作记录
+        logs = self.scooter_controller.get_operation_logs(limit=50)
+        
+        # 过滤出锁定操作后紧接着发生关联更新的记录
+        auto_update_logs = []
+        update_times = {}
+        
+        # 首先找出所有更新操作的时间
+        for log in logs:
+            if log['operation_type'] == "更新关联":
+                scooter_id = log['scooter_id']
+                update_times[scooter_id] = log['operation_time']
+        
+        # 然后找出所有锁定操作后紧接着发生更新的记录
+        for log in logs:
+            if log['operation_type'] == "锁定":
+                scooter_id = log['scooter_id']
+                if scooter_id in update_times:
+                    lock_time = datetime.fromisoformat(log['operation_time'])
+                    update_time = datetime.fromisoformat(update_times[scooter_id])
+                    
+                    # 如果更新时间在锁定后的5分钟内
+                    if (update_time - lock_time).total_seconds() <= 300:
+                        auto_update_logs.append({
+                            "操作时间": update_times[scooter_id],
+                            "车辆ID": scooter_id,
+                            "锁控制器ID": log['controller_id'],
+                            "子锁号": log['sub_lock_number'],
+                            "状态": "自动更新"
+                        })
+        
+        # 将自动更新记录显示在树形视图中
+        for i, log in enumerate(auto_update_logs):
+            values = (log["操作时间"], log["车辆ID"], log["锁控制器ID"], log["子锁号"], log["状态"])
+            history_tree.insert("", "end", iid=i, values=values)
 
 if __name__ == "__main__":
     root = tk.Tk()

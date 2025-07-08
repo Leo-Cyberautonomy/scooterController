@@ -1,0 +1,98 @@
+{
+  "scooters": [
+    {
+      "scooter_id": "OKCB24070205112",
+      "scooter_name": "车辆1",
+      "bluetooth_address": "78:05:41:3F:E9:29",
+      "imei": "867689061117695",
+      "lock_number": 1,
+      "status": "空闲"
+    },
+    {
+      "scooter_id": "OKCB2405080470",
+      "scooter_name": "车辆2",
+      "bluetooth_address": "78:05:41:3F:EA:E7",
+      "imei": "867689061222206",
+      "lock_number": 2,
+      "status": "空闲"
+    },
+    {
+      "scooter_id": "OKCB24070205126",
+      "scooter_name": "车辆3",
+      "bluetooth_address": "78:05:41:3F:E9:77",
+      "imei": "867689061400752",
+      "lock_number": 3,
+      "status": "空闲"
+    },
+    {
+      "scooter_id": "OKCB24070205125",
+      "scooter_name": "车辆4",
+      "bluetooth_address": "78:05:41:3F:EA:20",
+      "imei": "867689061118545",
+      "lock_number": 4,
+      "status": "空闲"
+    },
+    {
+      "scooter_id": "OKCB24050804138",
+      "scooter_name": "车辆5",
+      "bluetooth_address": "78:05:41:3F:E9:6A",
+      "imei": "867689061134732",
+      "lock_number": 5,
+      "status": "空闲"
+    },
+    {
+      "scooter_id": "OKCB2407020583",
+      "scooter_name": "车辆6",
+      "bluetooth_address": "78:05:41:3F:E9:D7",
+      "imei": "867689061128874",
+      "lock_number": 6,
+      "status": "空闲"
+    },
+    {
+      "scooter_id": "OKCB2407020568",
+      "scooter_name": "车辆7",
+      "bluetooth_address": "78:05:41:3F:E9:6F",
+      "imei": "867689061400562",
+      "lock_number": 7,
+      "status": "空闲"
+    },
+    {
+      "scooter_id": "OKCB2407020525",
+      "scooter_name": "车辆8",
+      "bluetooth_address": "78:05:41:3F:EA:E2",
+      "imei": "867689061333631",
+      "lock_number": 8,
+      "status": "空闲"
+    },
+    {
+      "scooter_id": "OKCB2407020597",
+      "scooter_name": "车辆9",
+      "bluetooth_address": "78:05:41:3F:EB:0F",
+      "imei": "867689061215606",
+      "lock_number": 9,
+      "status": "空闲"
+    },
+    {
+      "scooter_id": "OKCB24070205111",
+      "scooter_name": "车辆10",
+      "bluetooth_address": "78:05:41:3F:EA:23",
+      "imei": "867689061128148",
+      "lock_number": 10,
+      "status": "空闲"
+    }
+  ],
+  "lock_controllers": [
+    {
+      "controller_id": "866846061120977",
+      "controller_name": "锁控制器1",
+      "mqtt_topic_prefix": "ULC866846061120977",
+      "status": "正常"
+    },
+    {
+      "controller_id": "866846061051685",
+      "controller_name": "锁控制器2",
+      "mqtt_topic_prefix": "ULC866846061051685",
+      "status": "正常"
+    }
+  ]
+} 

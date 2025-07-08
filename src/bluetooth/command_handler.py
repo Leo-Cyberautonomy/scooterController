@@ -7,7 +7,7 @@ def format_command(command_type, *args):
     :param args: 命令参数。
     :return: 格式化后的命令字符串。
     """
-    command = f"AT+{command_type}=" + ",".join(map(str, args)) + "\r\n"
+    command = f"AT+{command_type}=" + ",".join(map(str, args))
     return command
 
 def parse_response(response):

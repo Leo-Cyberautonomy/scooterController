@@ -1,0 +1,19 @@
+# 蓝牙通信
+bleak>=0.14.0
+
+# MQTT客户端
+paho-mqtt>=1.6.1
+
+# GUI增强组件(可选)
+ttkthemes>=3.2.0
+Pillow>=8.4.0,<11.0.0
+
+# 网络请求(用于远程API调用)
+requests>=2.27.1
+
+# 序列化工具
+simplejson>=3.17.6
+
+# 系统交互
+pyserial>=3.5   # 用于串口通信
+pywin32>=303; sys_platform == 'win32'  # Windows平台特定功能 

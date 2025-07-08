@@ -16,6 +16,10 @@ class Database:
         self.cursor = None
         self.connect()
         self.create_tables()
+        
+        # 检查是否需要从配置文件导入初始数据
+        if os.path.exists('config/devices.json') and self.is_database_empty():
+            self.import_from_config()
     
     def connect(self):
         """连接到数据库"""
@@ -74,6 +78,71 @@ class Database:
         ''')
         
         self.commit()
+
+    def is_database_empty(self):
+        """检查数据库是否为空"""
+        self.cursor.execute("SELECT COUNT(*) FROM scooters")
+        scooter_count = self.cursor.fetchone()[0]
+        
+        self.cursor.execute("SELECT COUNT(*) FROM lock_controllers")
+        lock_count = self.cursor.fetchone()[0]
+        
+        return scooter_count == 0 and lock_count == 0
+    
+    def import_from_config(self):
+        """从配置文件导入数据"""
+        try:
+            with open('config/devices.json', 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                
+            # 导入锁控制器
+            for controller in config.get('lock_controllers', []):
+                self.cursor.execute('''
+                INSERT INTO lock_controllers (controller_id, controller_name, mqtt_topic_prefix, status)
+                VALUES (?, ?, ?, ?)
+                ''', (
+                    controller['controller_id'],
+                    controller['controller_name'],
+                    controller['mqtt_topic_prefix'],
+                    controller['status']
+                ))
+            
+            # 导入车辆信息
+            for scooter in config.get('scooters', []):
+                # 根据锁编号获取正确的控制器ID和子锁号
+                lock_number = scooter.get('lock_number')
+                controller_id = None
+                sub_lock_number = None
+                
+                if lock_number and 1 <= lock_number <= 10:
+                    if 1 <= lock_number <= 5:
+                        controller_id = "866846061120977"
+                        sub_lock_number = lock_number
+                    elif 6 <= lock_number <= 10:
+                        controller_id = "866846061051685"
+                        sub_lock_number = lock_number - 5
+                
+                self.cursor.execute('''
+                INSERT INTO scooters (scooter_id, scooter_name, bluetooth_address, lock_controller_id, sub_lock_number, status, last_operation_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    scooter['scooter_id'],
+                    scooter['scooter_name'],
+                    scooter['bluetooth_address'],
+                    controller_id,
+                    sub_lock_number,
+                    scooter['status'],
+                    datetime.now().isoformat()
+                ))
+            
+            self.commit()
+            print("成功从配置文件导入数据")
+            
+        except Exception as e:
+            print(f"从配置文件导入数据时出错: {e}")
+            # 回滚事务
+            if self.connection:
+                self.connection.rollback()
 
 class ScooterManager:
     """车辆管理类，提供添加、查询、更新车辆信息的功能"""
